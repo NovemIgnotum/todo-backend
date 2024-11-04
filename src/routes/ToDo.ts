@@ -9,6 +9,6 @@ router.get('/ReadOne/:id', controller.readOneToDo);
 router.get('/ReadAllByUser/:id', controller.readAllToDoByUser);
 router.put('/AddTask/:id', controller.addTask);
 router.put('/modifyParticipant/:id', controller.modifyParticipant);
-router.put('/changeOwner/:id', controller.changeOwner);
+router.put('/updateTask/:id', controller.updateTodo);
 
 export default router;

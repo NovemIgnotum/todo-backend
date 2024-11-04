@@ -22,8 +22,6 @@ const createToDo = async (req: Request, res: Response) => {
         findedUser.task.push(newToDo._id);
         await findedUser.save();
 
-        console.log(newToDo._id);
-
         return res.status(201).json(newToDo);
     } catch (error) {
         return res.status(500).json({ error: Object(error).message });
@@ -153,31 +151,91 @@ const modifyParticipant = async (req: Request, res: Response) => {
     }
 };
 
-const changeOwner = async (req: Request, res: Response) => {
+const updateTodo = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { newOwner } = req.body;
+        const { todoTitle, newOwner, tasks } = req.body;
+
         const toDoFinded = await ToDo.findById(id);
+
         if (!toDoFinded) {
             return res.status(404).json({ message: 'ToDo not found' });
         }
-        const userFinded = await User.findById(newOwner);
-        if (!userFinded) {
-            return res.status(404).json({ message: 'User not found' });
+        if (tasks) {
+            tasks.forEach(async (task: object) => {
+                const taskFinded = toDoFinded.task.find((task) => task._id === Object(task).taskID);
+                if (!taskFinded) {
+                    return res.status(404).json({ message: `the ${Object(task).taskID} does not exist` });
+                } else {
+                    if (Object(task).taskName) {
+                        taskFinded.name = Object(task).taskName;
+                    }
+                    if (Object(task).taskDescription) {
+                        taskFinded.description = Object(task).taskDescription;
+                    }
+                    if (Object(task).dueDate) {
+                        taskFinded.dueDate = Object(task).dueDate;
+                    }
+                    if (Object(task).userToAdd) {
+                        const userFinded = await User.findById(Object(task).userToAdd);
+                        if (!userFinded) {
+                            return res.status(404).json({ message: 'User not found' });
+                        }
+                        const userIndex = taskFinded.user.indexOf(Object(task).userToAdd);
+                        if (userIndex !== -1) {
+                            return res.status(404).json({ message: 'User already in task' });
+                        }
+                        taskFinded.user.push(Object(task).userToAdd);
+                        userFinded.task.push(toDoFinded._id);
+                        await userFinded.save();
+                    }
+                    if (Object(task).userToRemove) {
+                        const userFinded = await User.findById(Object(task).userToRemove);
+                        if (!userFinded) {
+                            return res.status(404).json({ message: 'User not found' });
+                        }
+                        const userIndex = taskFinded.user.indexOf(Object(task).userToRemove);
+                        if (userIndex === -1) {
+                            return res.status(404).json({ message: 'User not found in task' });
+                        }
+                        taskFinded.user.splice(userIndex, 1);
+                        userFinded.task.splice(userFinded.task.indexOf(toDoFinded._id), 1);
+                        await userFinded.save();
+                    }
+                }
+            });
         }
-        toDoFinded.owner = newOwner;
-        const oldOwner = await User.findById(toDoFinded.owner);
-        if (!oldOwner) {
-            return res.status(404).json({ message: 'Old owner not found' });
+        if (todoTitle) {
+            toDoFinded.title = todoTitle;
         }
-        oldOwner.task.splice(oldOwner.task.indexOf(toDoFinded._id), 1);
-        console.log(toDoFinded);
-        await toDoFinded.save();
-        await oldOwner.save();
-        return res.status(200).json({ message: 'Owner changed' });
+        if (newOwner) {
+            const userFinded = await User.findById(newOwner);
+            if (!userFinded) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+            toDoFinded.owner = newOwner;
+            const oldOwner = await User.findById(toDoFinded.owner);
+            if (!oldOwner) {
+                return res.status(404).json({ message: 'Old owner not found' });
+            }
+            oldOwner.task.splice(oldOwner.task.indexOf(toDoFinded._id), 1);
+            console.log(toDoFinded);
+            await toDoFinded.save();
+            await oldOwner.save();
+        }
+
+        return res.status(200).json({ message: 'Task updated' });
     } catch (error) {
         return res.status(500).json({ error: Object(error).message });
     }
 };
 
-export default { createToDo, readAllToDo, readOneToDo, addTask, modifyParticipant, readAllToDoByUser, changeOwner };
+export default {
+    createToDo,
+    readAllToDo,
+    readOneToDo,
+    addTask,
+    modifyParticipant,
+    readAllToDoByUser,
+    updateTodo
+};
